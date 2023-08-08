@@ -4,6 +4,12 @@ using Business;
 using DataAccess.Repositories.Implementations;
 using DataAccess.Repositories.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +27,64 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PermissionPolicy", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            var permissions = context.User.FindAll("permissions").Select(p => p.Value).ToList();
+            return permissions.Any();
+        });
+    });
+});
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Qimia Academy", Version = "v1" });
+
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+        Scheme = "bearer",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        BearerFormat = "JWT",
+        Description = "JWT Authorization header using the Bearer scheme."
+    };
+    c.AddSecurityDefinition("Bearer", securityScheme);
+
+    var securityRequirement = new OpenApiSecurityRequirement
+        {
+            { securityScheme, new List<string>() }
+        };
+    c.AddSecurityRequirement(securityRequirement);
+});
+
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration["Auth0:ClientSecret"]));
+    options.Authority = $"{builder.Configuration["Auth0:Domain"]}";
+    options.Audience = builder.Configuration["Auth0:Audience"];
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        NameClaimType = "name",
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = key,
+        ValidIssuer = $"https://{builder.Configuration["Auth0:Domain"]}",
+        ValidAudience = builder.Configuration["Auth0:Audience"],
+    };
+});
+
 
 
 var app = builder.Build();
@@ -34,6 +98,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

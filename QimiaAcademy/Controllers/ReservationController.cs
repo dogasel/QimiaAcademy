@@ -5,10 +5,12 @@ using Business.Implementations.Commands.Reservations;
 using Business.Implementations.Queries.Reservations.Dtos;
 using Business.Implementations.Queries.Reservations;
 using Business.Implementations.Commands.Reservations.Dtos;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QimiaAcademy.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("[controller]")]
 public class ReservationController : Controller
 {
@@ -34,6 +36,7 @@ public class ReservationController : Controller
     }
 
     [HttpGet("{id:long}")]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<ReservationDto> GetReservation(
         [FromRoute] long id,
         CancellationToken cancellationToken)
@@ -45,6 +48,7 @@ public class ReservationController : Controller
     }
 
     [HttpGet("User/{username}")]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<IEnumerable<ReservationDto>> GetReservationsOfUser([FromRoute] string username, CancellationToken cancellationToken)
     {
         return _mediator.Send(
@@ -53,6 +57,7 @@ public class ReservationController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<IEnumerable<ReservationDto>> GetReservations(CancellationToken cancellationToken)
     {
         return _mediator.Send(
@@ -74,7 +79,7 @@ public class ReservationController : Controller
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteBook(
+    public async Task<ActionResult> DeleteReservation(
         [FromRoute] long id,
         CancellationToken cancellationToken)
     {

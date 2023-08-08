@@ -11,6 +11,7 @@ using Business.Implementations.Queries.Users.Dtos;
 namespace QimiaAcademy.Controllers
 {
     [ApiController]
+    [Authorize(Policy = "PermissionPolicy")]
     [Route("[controller]")]
 
     public class UserController : Controller

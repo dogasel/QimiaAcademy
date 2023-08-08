@@ -17,6 +17,8 @@ public class User
     public string FirstMidName { get; set; } = string.Empty!;
     public UserStatus Status { get; set; } 
 
+    public bool isUser { get; set; }
+    
     public DateTime CreationDate { get; set; } 
     public DateTime? UpdateDate { get; set; }
 

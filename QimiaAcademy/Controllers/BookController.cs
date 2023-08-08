@@ -11,6 +11,7 @@ using Business.Implementations.Queries.Books.Dtos;
 namespace QimiaAcademy.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("[controller]")]
 
     public class BookController : Controller
@@ -23,6 +24,7 @@ namespace QimiaAcademy.Controllers
 
 
         [HttpPost]
+        [Authorize(Policy = "PermissionPolicy")]
         public async Task<ActionResult> CreateBook(
             [FromBody] CreateBookDto Book,
             CancellationToken cancellationToken)
@@ -36,6 +38,7 @@ namespace QimiaAcademy.Controllers
         }
 
         [HttpGet("{id}")]
+
         public Task<BookDto> GetBook(
             [FromRoute] long id,
             CancellationToken cancellationToken)
@@ -46,6 +49,7 @@ namespace QimiaAcademy.Controllers
         }
 
         [HttpGet]
+        
         public Task<IEnumerable<BookDto>> GetBooks(CancellationToken cancellationToken)
         {
             return _mediator.Send(
@@ -54,6 +58,7 @@ namespace QimiaAcademy.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "PermissionPolicy")]
         public async Task<ActionResult> UpdateBook(
             [FromRoute] long id,
             [FromBody] CreateBookDto Book,
@@ -67,6 +72,7 @@ namespace QimiaAcademy.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "PermissionPolicy")]
         public async Task<ActionResult> DeleteBook(
             [FromRoute] long id,
             CancellationToken cancellationToken)

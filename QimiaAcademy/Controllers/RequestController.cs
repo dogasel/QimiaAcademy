@@ -5,10 +5,12 @@ using Business.Implementations.Commands.Requests;
 using Business.Implementations.Queries.Requests.Dtos;
 using Business.Implementations.Queries.Requests;
 using Business.Implementations.Commands.Requests.Dtos;
+using Microsoft.AspNetCore.Authorization;
 
 namespace QimiaAcademy.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("[controller]")]
 public class RequestController : Controller
 {
@@ -34,6 +36,7 @@ public class RequestController : Controller
     }
 
     [HttpGet("{id:long}")]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<RequestDto> GetRequest(
         [FromRoute] long id,
         CancellationToken cancellationToken)
@@ -45,6 +48,7 @@ public class RequestController : Controller
     }
 
     [HttpGet("User/{username}")]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<IEnumerable<RequestDto>> GetRequestsOfUser([FromRoute] string username, CancellationToken cancellationToken)
     {
         return _mediator.Send(
@@ -53,6 +57,7 @@ public class RequestController : Controller
     }
 
     [HttpGet ]
+    [Authorize(Policy = "PermissionPolicy")]
     public Task<IEnumerable<RequestDto>> GetRequests(CancellationToken cancellationToken)
     {
         return _mediator.Send(
@@ -61,6 +66,7 @@ public class RequestController : Controller
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "PermissionPolicy")]
     public async Task<ActionResult> UpdateRequest(
         [FromRoute] long id,
         [FromBody] CreateRequestDto request,
@@ -74,7 +80,8 @@ public class RequestController : Controller
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteBook(
+
+    public async Task<ActionResult> DeleteRequest(
         [FromRoute] long id,
         CancellationToken cancellationToken)
     {
