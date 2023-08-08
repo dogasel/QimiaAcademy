@@ -16,16 +16,16 @@ namespace DataAccess.Entities
         public string Title { get; set; } = string.Empty;
         public string Author { get; set; } = string.Empty;
 
-        public DateTime PublishDate { get; set; }
+        public DateTime CreateDate { get; set; }
 
-        public long UserId { get; set; }
+        public long userId { get; set; }
+        public string UserName { get; set; }
         public User? User { get; set; }
 
-        public RequestStatus? RequestStatus;
+        public RequestStatus RequestStatus { get; set; }
+        
+        public DateTime ?UpdateDate { get; set; }
 
-        public bool isDeleted { get; set; }
-        public DateTime UpdateDate { get; set; }
-
-        public DateTime CreationDate { get; set; }
+       
     }
 }

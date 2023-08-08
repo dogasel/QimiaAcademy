@@ -17,6 +17,9 @@ namespace DataAccess.Entities
         Completed,
 
         Cancelled,
+
+        Deleted,
+
         
     }
 }

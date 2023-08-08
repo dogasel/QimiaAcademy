@@ -11,9 +11,11 @@ public interface IBookManager
         Book book,
         CancellationToken cancellationToken);
 
-    public Task<Book> GetBookByIdAsync(
-        long bookId,
+    public Task<IEnumerable<Book>> GetBookByTAAsync(
+        string author, string title,
         CancellationToken cancellationToken);
+    public Task<Book> GetBookByIDAsync(long ID, CancellationToken cancellationToken);
+    
 
     public Task<List<Book>> GetBooksAsync(
 
@@ -26,7 +28,7 @@ public interface IBookManager
         long bookId,
         Book book,
         CancellationToken cancellationToken);
-    public void DeleteBookAsync(
+    public Task<long> DeleteBookAsync(
        long bookId,
        CancellationToken cancellationToken);
 }

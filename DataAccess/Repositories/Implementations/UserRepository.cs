@@ -5,19 +5,22 @@ using DataAccess.Entities;
 using Microsoft.EntityFrameworkCore;
 using DataAccess;
 using DataAccess.Repositories.Abstractions;
+using DataAccess.Exceptions;
 
 namespace DataAccess.Repositories.Implementations
 {
     public class UserRepository : RepositoryBase<User>, IUserRepository
     {
         private readonly DbSet<User> DbSet;
+        public QimiaAcademyDbContext mycontext;
         
-        public UserRepository(QimiaAcademyDbContext dbContext,DbSet<User> _DbSet) : base(dbContext)
+        public UserRepository(QimiaAcademyDbContext dbContext ) : base(dbContext)
         {
-            DbSet = _DbSet;
+            mycontext = dbContext;
+            DbSet = dbContext.Set<User>();
         }
 
-        public async Task<long> GetByUserNameAsync(string userName, CancellationToken cancellationToken = default)
+        public async Task<User> GetByUserNameAsync(string userName, CancellationToken cancellationToken = default)
         {
 
             // Use EF Core to query the database for the user with the specified UserName
@@ -25,7 +28,10 @@ namespace DataAccess.Repositories.Implementations
                 .SingleOrDefaultAsync(u => u.UserName == userName, cancellationToken);
 
             // Return the found user or null if not found
-            return user.ID;
+            return user;
         }
+
+       
+        
     }
 }

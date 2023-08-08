@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAccess.Repositories.Implementations;
 using System.Net;
+using System.Collections.Generic;
 
 namespace Business.Implementations;
 
@@ -24,156 +25,194 @@ public class ReservationManager : IReservationManager
 
     public async Task CreateReservationAsync(Reservation reservation, CancellationToken cancellationToken)
     {
-        var book = await _bookRepository.GetByIdAsync(reservation.BookId, cancellationToken);
+        var allBooks = await _bookRepository.GetAllAsync();
+        var matchingBooks = allBooks
+            .Where(book => book.Title == reservation.Title && book.Author == reservation.Author)
+            .ToList();
 
-        // Check if the reservation date is the current day
-        if (reservation.ReservationDate.Date == DateTime.Now.Date)
+        var allReservations = await _reservationRepository.GetAllAsync();
+        var suitableBook = matchingBooks.FirstOrDefault(book =>
+            !allReservations.Any(r =>
+                r.BookId == book.ID &&
+                !(r.ReservationEndDate < reservation.ReservationDate || r.ReservationDate > reservation.ReservationEndDate)
+            )
+        );
+
+        if (suitableBook == null)
         {
-            // Check if the book is on the shelf on the current day
-            if (book.Status != BookStatus.OnTheShelf)
-            {
-                // The book is not on the shelf on the current day, don't create the reservation.
-                // You can handle this scenario as you see fit, for example, throw an exception or return a specific error code.
-                throw new InvalidOperationException("The book is not available on the shelf on the current day.");
-            }
-        }
-        else
-        {
-            // Check if the book is in the "WorkerIsReading" status or "Booked" status on the desired reservation date
-            if (book.Status == BookStatus.WorkerIsReading || book.Status == BookStatus.Booked)
-            {
-                // The book is either in "WorkerIsReading" or "Booked" status on the desired reservation date.
-                // Don't create the reservation.
-                // You can handle this scenario as you see fit, for example, throw an exception or return a specific error code.
-                throw new InvalidOperationException("The book is not available for reservation on the desired date.");
-            }
-
-            // Check if there are other reservations for any copy of the same book on the desired reservation date
-            var otherReservations = await _reservationRepository.GetByConditionAsync(r =>
-                r.Book.Title == book.Title && r.ReservationDate.Date == reservation.ReservationDate.Date,
-                cancellationToken);
-
-            // Check if there are any available copies of the book on the desired reservation date
-            var availableCopies = otherReservations.Any(r => r.BookStatus == null || r.BookStatus == BookStatus.OnTheShelf);
-
-            // If there are no available copies, don't create the reservation
-            if (!availableCopies)
-            {
-                // There are no available copies of the book on the desired reservation date, don't create the reservation.
-                // You can handle this scenario as you see fit, for example, throw an exception or return a specific error code.
-                throw new InvalidOperationException("There are no available copies of the book on the desired reservation date.");
-            }
+            throw new InvalidOperationException("No available books found for the desired reservation period.");
         }
 
-        // Proceed with creating the reservation.
+        var user = await _userRepository.GetByUserNameAsync(reservation.username, cancellationToken);
+
+        reservation.UserId = user.ID;
+        reservation.BookId = suitableBook.ID;
+        reservation.ReservationDate = reservation.ReservationDate;
+        reservation.ReservationEndDate = reservation.ReservationEndDate;
         reservation.CreationDate = DateTime.Now;
         reservation.UpdateDate = DateTime.Now;
         reservation.isDeleted = false;
 
-        // Set the reservation's end date based on the reservation date
-        reservation.ReservationEndDate = reservation.ReservationDate.AddDays(14);
-
-        // Save the reservation to the database using the _reservationRepository
-        await _reservationRepository.CreateAsync(reservation, cancellationToken);
-
-    }
-    public async Task<Reservation> GetReservationByIdAsync(long ReservationId, CancellationToken cancellationToken)
-    {
-        var res = await _reservationRepository.GetByIdAsync(ReservationId, cancellationToken);
-        return res;
+        await _reservationRepository.CreateAsync(reservation);
     }
 
-    public async Task<List<Reservation>> GetReservationsAsync(CancellationToken cancellationToken)
+    public async Task<Reservation> GetReservationByIdAsync(long reservationId, CancellationToken cancellationToken)
     {
-        // Retrieve all not deleted reservations from the repository
-        var reservations = await _reservationRepository.GetByConditionAsync(r => !r.isDeleted, cancellationToken);
+        // Get Username and Book
 
-        // Convert the result to a list and return
-        return reservations.ToList();
-    }
-    public async Task UpdateReservationAsync(long reservationId, Reservation updatedReservation, CancellationToken cancellationToken)
-    {
-        var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken);
+        var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken); // Assuming you have a GetByIdAsync method in _reservationRepository
         if (reservation == null)
         {
-            throw new InvalidOperationException("Reservation not found.");
+            return null; // Return null if the reservation with the specified ID doesn't exist
         }
+
+        var user = await _userRepository.GetByIdAsync(reservation.UserId, cancellationToken); // Await here
+        var book = await _bookRepository.GetByIdAsync(reservation.BookId, cancellationToken);
+
+        var reservationWithRelatedData = new Reservation
+        {
+            UserId = user.ID,
+            BookId = book.ID,
+            Title = book.Title,
+            Author = book.Author,
+            username = user.UserName,
+            ReservationDate = reservation.ReservationDate,
+            ReservationEndDate = reservation.ReservationEndDate,
+            UpdateDate = reservation.UpdateDate,
+            CreationDate = reservation.ReservationDate,
+        };
+
+        return reservationWithRelatedData;
+    }
+
+
+
+    async Task<IEnumerable<Reservation>> IReservationManager.GetReservationsAsync(CancellationToken cancellationToken)
+    {
+        //Get Username and Book
+
+        var reservations = await _reservationRepository.GetAllAsync(cancellationToken);
+        var users = await _userRepository.GetAllAsync(cancellationToken); // Await here
+        var books = await _bookRepository.GetAllAsync(cancellationToken);
+
+        var reservationsWithRelatedData = reservations
+            .Join(
+                users, // Use the awaited users variable
+                reservation => reservation.UserId,
+                user => user.ID,
+                (reservation, user) => new { Reservation = reservation, User = user }
+            )
+            .Join(
+                books, // Await the method if needed
+                combined => combined.Reservation.BookId,
+                book => book.ID,
+                (combined, book) => new Reservation
+                {
+                    UserId = combined.User.ID,
+                    BookId = book.ID,
+                    Title = book.Title,
+                    Author = book.Author,
+                    username = combined.User.UserName,
+                    ReservationDate = combined.Reservation.ReservationDate,
+                    ReservationEndDate = combined.Reservation.ReservationEndDate,
+                    UpdateDate = combined.Reservation.UpdateDate,
+                    CreationDate = combined.Reservation.ReservationDate,
+                }
+            );
+
+        return reservationsWithRelatedData;
+    }
+    public async Task UpdateReservationAsync(long reservationID, Reservation updatedReservation, CancellationToken cancellationToken)
+    {
+        var oldReservation = await _reservationRepository.GetByIdAsync(reservationID, cancellationToken);
+
+        // Check if the difference between the new end date and reservation date is not more than 14 days
+        var maxAllowedEndDate = oldReservation.ReservationEndDate.AddDays(14);
+        if (updatedReservation.ReservationEndDate > maxAllowedEndDate)
+        {
+            throw new InvalidOperationException("End Date must not exceed 14 days from the original reservation date.");
+        }
+
+        // Check for conflicting reservations with the same book within the new end date range
+        var allReservations = await _reservationRepository.GetAllAsync();
+        var conflictingReservations = allReservations
+            .Where(r =>
+                r.ID != oldReservation.ID &&
+                r.BookId == oldReservation.BookId &&
+                r.ReservationEndDate >= oldReservation.ReservationEndDate &&
+                r.ReservationDate <= updatedReservation.ReservationEndDate
+            )
+            .ToList();
+
+        if (conflictingReservations.Count > 0)
+        {
+            throw new InvalidOperationException("Conflicting reservations found for the desired reservation period.");
+        }
+
+        // Update the reservation end date and modification date
+        oldReservation.ReservationEndDate = updatedReservation.ReservationEndDate;
+        oldReservation.UpdateDate = DateTime.Now;
+
+        await _reservationRepository.UpdateAsync(oldReservation, cancellationToken);
+    }
+    public async Task<IEnumerable<Reservation>> GetReservationsByUsernameAsync(string username, CancellationToken cancellationToken)
+    {
+        // Get the user with the provided username
+        var user = await _userRepository.GetByUserNameAsync(username, cancellationToken);
+
+        if (user == null)
+        {
+            return Enumerable.Empty<Reservation>(); // Return an empty collection if user doesn't exist
+        }
+
+        // Get all reservations associated with the user's ID
+        var reservations = await _reservationRepository.GetByConditionAsync(u=>u.UserId==user.ID, cancellationToken);
+
+        // Fetch related book information for each reservation using recursion
+        var reservationsWithRelatedData = await FetchReservationDataAsync(reservations, user, cancellationToken);
+
+        return reservationsWithRelatedData;
+    }
+
+
+    
+    public async Task<List<Reservation>> FetchReservationDataAsync(IEnumerable<Reservation> reservations, User user, CancellationToken cancellationToken)
+    {
+        var reservationList = reservations.ToList();
+
+        if (reservationList.Count == 0)
+        {
+            return new List<Reservation>();
+        }
+
+        var reservation = reservationList[0];
+        reservationList.RemoveAt(0);
 
         var book = await _bookRepository.GetByIdAsync(reservation.BookId, cancellationToken);
-        if (book == null)
+
+        var newReservation = new Reservation
         {
-            throw new InvalidOperationException("Book not found.");
-        }
+            UserId = user.ID,
+            BookId = book.ID,
+            Title = book.Title,
+            Author = book.Author,
+            username = user.UserName,
+            ReservationDate = reservation.ReservationDate,
+            ReservationEndDate = reservation.ReservationEndDate,
+            UpdateDate = reservation.UpdateDate,
+            CreationDate = reservation.CreationDate,
+        };
 
-        if (reservation.ReservationDate.Date == DateTime.Now.Date)
-        {
-            // If it's the current day reservation, only cancel reservation is allowed
-            if (updatedReservation.isDeleted)
-            {
-                // If canceled, change the book status to "OnTheShelf"
-                book.Status = BookStatus.OnTheShelf;
-            }
-            else
-            {
-                throw new InvalidOperationException("Updating reservation is not allowed on the current day.");
-            }
-        }
-        else
-        {
-            // Check if the book is in the "WorkerIsReading" status on the reservation date
-            if (book.Status == BookStatus.WorkerIsReading && book.UpdateDate.Date == reservation.ReservationDate.Date)
-            {
-                // If the book is in "WorkerIsReading" status on the reservation date, the book can be delivered.
-                // We don't need to set isDeleted to true here since we're not canceling the reservation.
-                book.Status = BookStatus.OnTheShelf;
-            }
-            else
-            {
-                // If it's a future reservation date, we can extend the delivery date if there are no other reservations
-                var otherReservations = await _reservationRepository.GetByConditionAsync(r =>
-                    r.BookId == reservation.BookId && r.ReservationDate.Date == reservation.ReservationDate.Date,
-                    cancellationToken);
+        var restOfReservations = await FetchReservationDataAsync(reservationList, user, cancellationToken);
+        restOfReservations.Insert(0, newReservation);
 
-                // Check if there are other reservations for the same book on the same reservation date
-                if (!otherReservations.Any(r => r.ID != reservationId))
-                {
-                    // There are no other reservations, so we can extend the delivery date.
-                    reservation.ReservationEndDate = reservation.ReservationEndDate.AddDays(7);
-                }
-                else
-                {
-                    // There are other reservations for the same book on the same reservation date, so we can't extend the delivery date.
-                    throw new InvalidOperationException("There are other reservations for the same book on the same reservation date.");
-                }
-            }
-        }
-
-        // Update the reservation details and book status
-        reservation.UpdateDate = DateTime.Now;
-        reservation.isDeleted = updatedReservation.isDeleted;
-
-        // Save the updated reservation to the database using the _reservationRepository
-        await _reservationRepository.UpdateAsync(reservation, cancellationToken);
-
-        // Save the updated book status to the database using the _bookRepository
-        await _bookRepository.UpdateAsync(book, cancellationToken);
+        return restOfReservations;
     }
-    public async Task<List<Reservation>> GetReservationsByUsernameAsync(string username, CancellationToken cancellationToken)
-    {
-        var userId = await _userRepository.GetByUserNameAsync(username, cancellationToken);
-        
 
-        if (userId == -1)
-        {
-            throw new InvalidOperationException("User not found.");
-        }
-        
 
-        // Retrieve all reservations associated with the user
-        var userReservations = await _reservationRepository.GetByConditionAsync(r => r.UserId == userId, cancellationToken);
 
-        return userReservations.ToList();
-    }
+
+
 
     public void DeleteReservationAsync(long reservationId, CancellationToken cancellationToken)
     {

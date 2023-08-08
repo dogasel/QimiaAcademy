@@ -20,11 +20,11 @@ public interface IUserManager
 
         CancellationToken cancellationToken);
     public Task UpdateUserAsync( ///////////////////////////
-        long userId,
+        string username,
          User user,
         CancellationToken cancellationToken);
     
-    public void DeleteUserAsync(
-       long userId,
+    public Task<string> DeleteAsync(
+       string username, 
        CancellationToken cancellationToken);
 }

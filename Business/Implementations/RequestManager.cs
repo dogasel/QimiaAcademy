@@ -4,8 +4,7 @@ using DataAccess.Repositories.Abstractions;
 using DataAccess.Repositories.Implementations;
 using Microsoft.EntityFrameworkCore;
 using DataAccess;
-using Azure.Core;
-using Request = DataAccess.Entities.Request;
+using DataAccess.Exceptions;
 
 namespace Business.Implementations;
 public class RequestManager : IRequestManager
@@ -23,31 +22,22 @@ public class RequestManager : IRequestManager
     
     public async Task CreateRequestAsync(Request request, CancellationToken cancellationToken)
     {
-        
-        // Set the request's creation date to the current date/time
-        request.CreationDate = DateTime.Now;
-
-        // Set the request's status to Pending
-        request.RequestStatus = RequestStatus.Pending;
-
-        // Set the update date to the current date/time
-        request.UpdateDate = DateTime.Now;
-
+        request.ID = default;
         await _requestRepository.CreateAsync(request, cancellationToken);
     }
 
 
     
 
-    public async Task<List<Request>> GetRequestsAsync( CancellationToken cancellationToken)
+    public async Task<IEnumerable<DataAccess.Entities.Request>> GetRequestsAsync( CancellationToken cancellationToken)
     {
         var request = await _requestRepository.GetAllAsync(cancellationToken);
-        return request.ToList();
+        return request;
     }
-    public async Task UpdateRequestAsync( long RequestId, RequestStatus requestStatus, CancellationToken cancellationToken)
+    public async Task UpdateRequestAsync( long RequestId, Request updatedrequest, CancellationToken cancellationToken)
     {
         var request=await _requestRepository.GetByIdAsync(RequestId);
-        if(requestStatus.Equals(RequestStatus.Completed))
+        if(updatedrequest.RequestStatus.Equals(RequestStatus.Completed))
         {
             var book = new Book
             {
@@ -61,8 +51,10 @@ public class RequestManager : IRequestManager
 
         }
 
-        request.RequestStatus=requestStatus;
+        request.RequestStatus= updatedrequest.RequestStatus;
         request.UpdateDate=DateTime.Now;
+        request.Author = updatedrequest.Author;
+        request.Title= updatedrequest.Title;
         await _requestRepository.UpdateAsync(request, cancellationToken);
            
     }
@@ -76,7 +68,8 @@ public class RequestManager : IRequestManager
             throw new InvalidOperationException("request not found.");
         }
 
-        request.isDeleted = true;
+        request.RequestStatus = RequestStatus.Deleted;
+        request.UpdateDate= DateTime.Now;
         _requestRepository.UpdateAsync(request, cancellationToken);
     }
 
@@ -85,7 +78,17 @@ public class RequestManager : IRequestManager
         return await _requestRepository.GetByIdAsync(RequestId, cancellationToken);
     }
 
-  
+    public async Task<IEnumerable<Request>> GetRequestsByUser(string username, CancellationToken cancellationToken)
+    {
+        var result = await _requestRepository.GetByConditionAsync(r => r.UserName == username, cancellationToken);
+        if (result == null)
+        {
+            throw new EntityNotFoundException<Request>("Request not found.");
+        }
+    
+        return result;
+    }
+
 }
     
 

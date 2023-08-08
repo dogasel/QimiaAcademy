@@ -7,6 +7,7 @@ namespace DataAccess;
 
 public class QimiaAcademyDbContext : DbContext
 {
+
     public QimiaAcademyDbContext(
         DbContextOptions<QimiaAcademyDbContext> contextOptions) : base(contextOptions)
     {
@@ -19,13 +20,22 @@ public class QimiaAcademyDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        /*modelBuilder.Entity<User>()
-               .Property(u => u.UserName)
-              
-        .HasComputedColumnSql("[FirstMidName] + [LastName] + RIGHT('00' + CAST(ISNULL((SELECT MAX(CAST(SUBSTRING([UserName], LEN([UserName]) - 1, 2) AS INT)) + 1) , 0) AS NVARCHAR(2)), 2)")
 
-       
-        .IsRequired();*/
+        modelBuilder.Entity<User>()
+       .HasIndex(u => u.UserName)
+       .IsUnique();
+        modelBuilder.Entity<User>()
+     .HasQueryFilter(x => !x.Status.Equals (UserStatus.deleted));
+        modelBuilder.Entity<Book>()
+            .HasQueryFilter(x => !x.Status.Equals(BookStatus.Deleted));
+        modelBuilder.Entity<Reservation>()
+            .HasQueryFilter(x => x.isDeleted == false);
+        modelBuilder.Entity<Request>()
+             .HasQueryFilter(x => !x.RequestStatus.Equals(RequestStatus.Deleted));
+
+
         base.OnModelCreating(modelBuilder);
+
+
     }
 }

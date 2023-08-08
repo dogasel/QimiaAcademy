@@ -13,14 +13,18 @@ public interface IRequestManager
         long RequestId,
         CancellationToken cancellationToken);
 
-    public Task<List<Request>> GetRequestsAsync(
+    public Task<IEnumerable<Request>> GetRequestsAsync(
 
         CancellationToken cancellationToken);
-    public Task UpdateRequestAsync( ///////////////////////////
+    public Task UpdateRequestAsync( 
         long RequestId,
-         RequestStatus requestStatus,
+         Request request,
         CancellationToken cancellationToken);
     public void DeleteRequestAsync(
        long RequestId,
        CancellationToken cancellationToken);
+
+    public Task<IEnumerable<Request>> GetRequestsByUser(
+        string username,
+        CancellationToken cancellationToken);
 }

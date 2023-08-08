@@ -17,11 +17,11 @@ public class UserManager : IUserManager
         string UserName, CancellationToken cancellationToken
         )
     {
-        long UserID = await _UserRepository.GetByUserNameAsync(UserName, cancellationToken);
+        User user= await _UserRepository.GetByUserNameAsync(UserName, cancellationToken);
 
-        if (UserID != null)
+        if (user.ID != null)
         {
-            return UserID;
+            return user.ID;
         }
 
         return -1;
@@ -39,30 +39,34 @@ public class UserManager : IUserManager
     private string GenerateUserName(string firstName, string lastName, IEnumerable<User> existingUsers)
     {
         string baseUserName = $"{firstName}{lastName}".ToLower().Replace(" ", ""); // Concatenate name and surname, remove spaces, and convert to lowercase
-        string userName = baseUserName;
-        long number = 0;
+
+        // Filter the existing users with the same baseUserName
+        var usersWithSameBaseUserName = existingUsers
+            .Where(user => user.UserName.StartsWith(baseUserName))
+            .ToList();
+
+        int number = 0;
 
         // Find the maximum 2-digit number for the existing users with the same name and surname
-        foreach (var user in existingUsers)
+        if (usersWithSameBaseUserName.Any())
         {
-            if (user.UserName.StartsWith(baseUserName))
-            {
-                string numberPart = user.UserName.Substring(baseUserName.Length);
-                if (long.TryParse(numberPart, out long existingNumber) && existingNumber >= number)
-                {
-                    number = existingNumber + 1;
-                }
-            }
+            number = usersWithSameBaseUserName
+                .Select(user => user.UserName.Substring(baseUserName.Length))
+                .Where(numberPart => long.TryParse(numberPart, out long parsedNumber))
+                .Select(parsedNumber => int.Parse(parsedNumber))
+                .Max();
         }
 
+        // Increment the number for the new username
+        number++;
+
         // Append the 2-digit number to the baseUserName
-        if (number > 0 && number <= 99)
-        {
-            userName += number.ToString("D2"); // Format the number with leading zeros
-        }
+        string userName = $"{baseUserName}{number:D2}"; // Format the number with leading zeros
 
         return userName;
     }
+
+
 
     public async Task<User> GetUserByIdAsync(
         string UserName,
@@ -72,9 +76,14 @@ public class UserManager : IUserManager
         return await _UserRepository.GetByIdAsync(id, cancellationToken);
     }
 
-    public async Task UpdateUserAsync(long userId, User user, CancellationToken cancellationToken)
+    public async Task UpdateUserAsync(string username, User user, CancellationToken cancellationToken)
     {
-        await _UserRepository.UpdateAsync(user , cancellationToken);
+        var exuser= await _UserRepository.GetByUserNameAsync(username, cancellationToken);
+        exuser.FirstMidName = user.FirstMidName;
+        exuser.LastName = user.LastName;
+        exuser.Status = user.Status;
+        exuser.UpdateDate = user.UpdateDate;
+        await _UserRepository.UpdateAsync(exuser, cancellationToken);
     }
 
     public async Task<IEnumerable<User>> GetUsersAsync(CancellationToken cancellationToken)
@@ -82,11 +91,14 @@ public class UserManager : IUserManager
         return await _UserRepository.GetAllAsync(cancellationToken);
     }
 
-    public async void DeleteUserAsync(long userId, CancellationToken cancellationToken)
+ 
+    public async Task<string> DeleteAsync(string username,  CancellationToken cancellationToken)
     {
-        var user = await _UserRepository.GetByIdAsync(userId, cancellationToken);
-        user.Status = UserStatus.deleted;
-
-        await  _UserRepository.UpdateAsync(user, cancellationToken);
+        var User= await _UserRepository.GetByUserNameAsync(username, cancellationToken);
+        User.Status = UserStatus.deleted;
+        User.UpdateDate = DateTime.Now;
+          await _UserRepository.UpdateAsync(User, cancellationToken);
+        return username;
     }
+
 }

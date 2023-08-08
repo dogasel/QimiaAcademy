@@ -74,14 +74,6 @@ public abstract class RepositoryBase<T> : IRepositoryBase<T> where T : class
         await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async void DeleteAsync(
-        long id,
-        CancellationToken cancellationToken)
-    {
-        
-        T Result=  await GetByIdAsync(id, cancellationToken);
-        DbSet.Remove(Result);
-        await DbContext.SaveChangesAsync(cancellationToken);
-    }
+    
 
 }

@@ -16,7 +16,7 @@ namespace DataAccess.Entities
        
         public Request? Request { get; set; }
         public DateTime UpdateDate { get; set; }
-        public BookStatus Status { get; set; } = BookStatus.OnTheShelf;
+        public BookStatus Status { get; set; }
 
         public DateTime CreationDate { get; set; }
 
