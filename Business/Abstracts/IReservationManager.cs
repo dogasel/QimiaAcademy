@@ -18,7 +18,7 @@ public interface IReservationManager
     public Task<IEnumerable<Reservation>> GetReservationsAsync(
 
         CancellationToken cancellationToken);
-    public Task UpdateReservationAsync( ///////////////////////////emin değilim
+    public Task UpdateReservationAsync(
         long ReservationId,
         Reservation reservation,
         CancellationToken cancellationToken);

@@ -21,8 +21,9 @@ namespace DataAccess.Entities
         public DateTime ReservationEndDate { get; set; }
 
         public bool isDeleted { get; set; }
+        
 
-        [NotMapped]
+        [NotMapped] // tabela eklemiyor.
         public string Title { get; set; }
 
         [NotMapped]

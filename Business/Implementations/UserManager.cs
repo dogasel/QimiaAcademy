@@ -36,11 +36,19 @@ public class UserManager : IUserManager
 
         await _UserRepository.CreateAsync(user, cancellationToken);
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="firstName"></param>
+    /// <param name="lastName"></param>
+    /// <param name="existingUsers"></param>
+    /// <returns></returns>
     private string GenerateUserName(string firstName, string lastName, IEnumerable<User> existingUsers)
     {
         string baseUserName = $"{firstName}{lastName}".ToLower().Replace(" ", ""); // Concatenate name and surname, remove spaces, and convert to lowercase
 
-        // Filter the existing users with the same baseUserName
+        // Filter the existing users (both active and deleted) with the same baseUserName
         var usersWithSameBaseUserName = existingUsers
             .Where(user => user.UserName.StartsWith(baseUserName))
             .ToList();

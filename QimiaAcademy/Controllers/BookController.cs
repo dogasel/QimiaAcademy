@@ -37,7 +37,7 @@ namespace QimiaAcademy.Controllers
                 Book);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:long}")]
 
         public Task<BookDto> GetBook(
             [FromRoute] long id,
@@ -54,6 +54,15 @@ namespace QimiaAcademy.Controllers
         {
             return _mediator.Send(
                 new Business.Implementations.Queries.Books.GetBooksQuery(),
+                cancellationToken);
+        }
+
+
+        [HttpGet("Book/{date}")]
+        public Task<IEnumerable<BookDto>> GetBookForAbsoluteDay([FromRoute] DateTime date, CancellationToken cancellationToken)
+        {
+            return _mediator.Send(
+                new Business.Implementations.Queries.Books.GetBookForAbsoluteDayQuery(date),
                 cancellationToken);
         }
 
@@ -83,6 +92,7 @@ namespace QimiaAcademy.Controllers
 
             return NoContent();
         }
+
 
     }
 }

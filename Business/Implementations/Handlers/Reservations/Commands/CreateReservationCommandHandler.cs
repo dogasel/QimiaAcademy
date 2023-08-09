@@ -13,8 +13,7 @@ namespace Business.Implementations.Handlers.Reservations.Commands;
 public class CreateReservationCommandHandler : IRequestHandler<CreateReservationCommand, long>
 {
     private readonly IReservationManager _reservationManager;
-    private readonly IUserManager _userManager;
-    private readonly IBookManager _bookManager;
+   
 
     public CreateReservationCommandHandler(IReservationManager reservationManager)
     {
@@ -33,8 +32,8 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             Title= request.Reservation.Title,
             Author=request.Reservation.Author,
             CreationDate = DateTime.Now,
-            ReservationEndDate = request.Reservation.ReservationDate.AddDays(14),
-            ReservationDate=request.Reservation.ReservationDate,
+            ReservationEndDate =(request.Reservation.ReservationDate.AddDays(14)),
+            ReservationDate=(request.Reservation.ReservationDate),
 
         };
 

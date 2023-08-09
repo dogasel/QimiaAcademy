@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using DataAccess.Repositories.Implementations;
 using System.Net;
 using System.Collections.Generic;
+using DataAccess.Exceptions;
+using System.Diagnostics.Eventing.Reader;
 
 namespace Business.Implementations;
 
@@ -79,7 +81,7 @@ public class ReservationManager : IReservationManager
             ReservationDate = reservation.ReservationDate,
             ReservationEndDate = reservation.ReservationEndDate,
             UpdateDate = reservation.UpdateDate,
-            CreationDate = reservation.ReservationDate,
+            CreationDate = reservation.CreationDate,
         };
 
         return reservationWithRelatedData;
@@ -108,6 +110,7 @@ public class ReservationManager : IReservationManager
                 book => book.ID,
                 (combined, book) => new Reservation
                 {
+                    ID=combined.Reservation.ID,//idlerin tutması için
                     UserId = combined.User.ID,
                     BookId = book.ID,
                     Title = book.Title,
@@ -116,7 +119,7 @@ public class ReservationManager : IReservationManager
                     ReservationDate = combined.Reservation.ReservationDate,
                     ReservationEndDate = combined.Reservation.ReservationEndDate,
                     UpdateDate = combined.Reservation.UpdateDate,
-                    CreationDate = combined.Reservation.ReservationDate,
+                    CreationDate = combined.Reservation.CreationDate,
                 }
             );
 
@@ -126,34 +129,66 @@ public class ReservationManager : IReservationManager
     {
         var oldReservation = await _reservationRepository.GetByIdAsync(reservationID, cancellationToken);
 
-        // Check if the difference between the new end date and reservation date is not more than 14 days
-        var maxAllowedEndDate = oldReservation.ReservationEndDate.AddDays(14);
-        if (updatedReservation.ReservationEndDate > maxAllowedEndDate)
+        if (updatedReservation.ReservationDate.Date < DateTime.Now.Date)
         {
-            throw new InvalidOperationException("End Date must not exceed 14 days from the original reservation date.");
+            throw new InvalidOperationException("It is not post date reservation. ");
+        }
+        if (updatedReservation.ReservationDate> DateTime.Now)
+        {
+            var allReservations = await _reservationRepository.GetAllAsync();
+           
+            var conflictingReservations = allReservations
+                .Where(r =>
+                    r.ID != oldReservation.ID &&
+                    r.BookId == oldReservation.BookId &&
+                   !(r.ReservationEndDate < updatedReservation.ReservationDate || r.ReservationDate > updatedReservation.ReservationDate.AddDays(14))
+                )
+                .ToList();
+
+            if (conflictingReservations.Count > 0)
+            {
+                throw new InvalidOperationException("This book is not valid for this day!");
+            }
+            oldReservation.ReservationDate = updatedReservation.ReservationDate;
+
+            oldReservation.ReservationEndDate = updatedReservation.ReservationDate.AddDays(14);
+          
         }
 
-        // Check for conflicting reservations with the same book within the new end date range
-        var allReservations = await _reservationRepository.GetAllAsync();
-        var conflictingReservations = allReservations
-            .Where(r =>
-                r.ID != oldReservation.ID &&
-                r.BookId == oldReservation.BookId &&
-                r.ReservationEndDate >= oldReservation.ReservationEndDate &&
-                r.ReservationDate <= updatedReservation.ReservationEndDate
-            )
-            .ToList();
-
-        if (conflictingReservations.Count > 0)
+        else
         {
-            throw new InvalidOperationException("Conflicting reservations found for the desired reservation period.");
-        }
 
-        // Update the reservation end date and modification date
-        oldReservation.ReservationEndDate = updatedReservation.ReservationEndDate;
+            // Check if the difference between the new end date and reservation date is not more than 14 days
+            var maxAllowedEndDate = oldReservation.ReservationEndDate.AddDays(14);
+            if (updatedReservation.ReservationEndDate > maxAllowedEndDate)
+            {
+                throw new InvalidOperationException("End Date must not exceed 14 days from the original reservation date.");
+            }
+
+            // Check for conflicting reservations with the same book within the new end date range
+            var allReservations = await _reservationRepository.GetAllAsync();
+            var conflictingReservations = allReservations
+                .Where(r =>
+                    r.ID != oldReservation.ID &&
+                    r.BookId == oldReservation.BookId &&
+                    r.ReservationEndDate >= oldReservation.ReservationEndDate &&
+                    r.ReservationDate <= updatedReservation.ReservationEndDate
+                )
+                .ToList();
+
+            
+
+            // Update the reservation end date and update date
+            oldReservation.ReservationEndDate = updatedReservation.ReservationEndDate;
+            
+        }
+     
+
         oldReservation.UpdateDate = DateTime.Now;
 
         await _reservationRepository.UpdateAsync(oldReservation, cancellationToken);
+
+
     }
     public async Task<IEnumerable<Reservation>> GetReservationsByUsernameAsync(string username, CancellationToken cancellationToken)
     {
@@ -175,7 +210,7 @@ public class ReservationManager : IReservationManager
     }
 
 
-    
+
     public async Task<List<Reservation>> FetchReservationDataAsync(IEnumerable<Reservation> reservations, User user, CancellationToken cancellationToken)
     {
         var reservationList = reservations.ToList();
@@ -201,6 +236,7 @@ public class ReservationManager : IReservationManager
             ReservationEndDate = reservation.ReservationEndDate,
             UpdateDate = reservation.UpdateDate,
             CreationDate = reservation.CreationDate,
+           
         };
 
         var restOfReservations = await FetchReservationDataAsync(reservationList, user, cancellationToken);
@@ -225,13 +261,13 @@ public class ReservationManager : IReservationManager
         }
 
         // Get the tarih işlem yapıldığı tarihi temsil eden değişken
-        var reservationDate = reservation.ReservationDate.Date;
+        var reservationDate = reservation.ReservationDate;
 
         // Retrieve all reservations associated with the user
         var userReservations = _reservationRepository.GetByConditionAsync(r => r.UserId == reservation.UserId, cancellationToken).GetAwaiter().GetResult();
 
         // Find the reservation to delete using the provided reservationId and reservation date
-        var reservationToDelete = userReservations.FirstOrDefault(r => r.ID == reservationId && r.ReservationDate.Date >= reservationDate);
+        var reservationToDelete = userReservations.FirstOrDefault(r => r.ID == reservationId && r.ReservationDate >= reservationDate);
 
         if (reservationToDelete != null)
         {

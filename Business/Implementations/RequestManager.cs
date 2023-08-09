@@ -23,6 +23,11 @@ public class RequestManager : IRequestManager
     public async Task CreateRequestAsync(Request request, CancellationToken cancellationToken)
     {
         request.ID = default;
+        var existingbooks=await _bookRepository.GetByTAAsync(request.Title,request.Author,cancellationToken);
+        if(existingbooks.ToList().Count>0)
+        {
+            throw new InvalidOperationException("This book is already in the library");
+        }
         await _requestRepository.CreateAsync(request, cancellationToken);
     }
 

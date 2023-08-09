@@ -10,16 +10,24 @@ namespace Business.Implementations;
 public class BookManager : IBookManager
 {
     private readonly IBookRepository _BookRepository;
-    private readonly IRequestRepository _requestRepository;
-    public BookManager(IBookRepository BookRepository, IRequestRepository RequestRepository)
+    private readonly IReservationRepository _ReservationRepository;
+    public BookManager(IBookRepository BookRepository, IReservationRepository ReservationRepository)
     {
         _BookRepository = BookRepository;
-        _requestRepository = RequestRepository;
+        _ReservationRepository = ReservationRepository;
     }
     public async Task CreateBookAsync(Book book, CancellationToken cancellationToken)
     {
+        var bookList = await _BookRepository.GetByConditionAsync(
+                        b => b.Title == book.Title && b.Author == book.Author,
+                        cancellationToken);
+        if (bookList.ToList().Count > 0)
+        {
+            book.RequestId = bookList.First().RequestId;
+            await _BookRepository.CreateAsync(book, cancellationToken);
+        }
 
-          await _BookRepository.CreateAsync(book, cancellationToken);
+        throw new EntityNotFoundException<Book>("Book does not exist in the library. Please create a request for this book.");
     }         
         
     
@@ -39,19 +47,26 @@ public class BookManager : IBookManager
         var allBooks = await _BookRepository.GetAllAsync(cancellationToken);
         return allBooks.Where(book => book.Status != BookStatus.Deleted).ToList();
     }
-    public  async Task<List<Book>> GetBookByAbsoluteDateAsync(DateTime dateTime, CancellationToken cancellationToken)
+    public async Task<IEnumerable<Book>> GetBookByAbsoluteDateAsync(DateTime dateTime, CancellationToken cancellationToken)
     {
-        var allBooks = await _BookRepository.GetAllAsync(cancellationToken);
-        return allBooks
-                .Where(book =>
-                    (book.Status == BookStatus.OnTheShelf && book.UpdateDate.Date <= dateTime.Date) ||
-                    (book.Status != BookStatus.Booked && book.Status != BookStatus.WorkerIsReading && book.UpdateDate.Date == dateTime.Date)
-                )
-                .ToList();
+        // Get all reservations on the specified date
+        var reservationsOnDate = await _ReservationRepository.GetByConditionAsync(r =>
+            r.ReservationDate.Date <= dateTime.Date && r.ReservationEndDate.Date >= dateTime.Date,
+            cancellationToken);
 
+        // Get all books that are not included in reservations on the specified date
+        var bookedBookIds = reservationsOnDate.Select(r => r.BookId).ToList();
+
+        var availableBooks = await _BookRepository.GetByConditionAsync(b =>
+            !bookedBookIds.Contains(b.ID),
+            cancellationToken);
+
+        return availableBooks;
     }
 
-    public async Task UpdateBookAsync(long bookId, Book book, CancellationToken cancellationToken)
+
+
+public async Task UpdateBookAsync(long bookId, Book book, CancellationToken cancellationToken)
     {
         var OLDBook=await _BookRepository.GetByIdAsync(bookId);
         OLDBook.Title=book.Title;

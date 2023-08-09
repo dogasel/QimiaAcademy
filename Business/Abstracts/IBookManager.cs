@@ -20,7 +20,7 @@ public interface IBookManager
     public Task<List<Book>> GetBooksAsync(
 
         CancellationToken cancellationToken);
-    public Task<List<Book>> GetBookByAbsoluteDateAsync(/////////
+    public Task<IEnumerable<Book>> GetBookByAbsoluteDateAsync(/////////
 
         DateTime dateTime,CancellationToken cancellationToken);
 
