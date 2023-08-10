@@ -1,15 +1,24 @@
 ﻿using Business.Abstracts;
+using Business.Implementations.Commands.Users;
 using DataAccess.Entities;
 using DataAccess.Repositories.Abstractions;
 using DataAccess.Repositories.Implementations;
-
+using MediatR;
+using Microsoft.Extensions.Configuration;
+using Auth0.AuthenticationApi;
+using Auth0.AuthenticationApi.Models;
+using Auth0.Core.Exceptions;
 namespace Business.Implementations;
 
 public class UserManager : IUserManager
 {
     private readonly IUserRepository _UserRepository;
-    public UserManager(IUserRepository UserRepository)
+    private readonly AuthenticationApiClient _auth0Client;
+    private readonly IConfiguration _configuration;
+    public UserManager(IUserRepository UserRepository, IConfiguration configuration)
     {
+        _configuration = configuration;
+         _auth0Client = new AuthenticationApiClient(new Uri(_configuration["Auth0:Domain"]));
         _UserRepository = UserRepository;
     }
 
@@ -17,7 +26,7 @@ public class UserManager : IUserManager
         string UserName, CancellationToken cancellationToken
         )
     {
-        User user= await _UserRepository.GetByUserNameAsync(UserName, cancellationToken);
+        DataAccess.Entities.User user = await _UserRepository.GetByUserNameAsync(UserName, cancellationToken);
 
         if (user.ID != null)
         {
@@ -27,7 +36,7 @@ public class UserManager : IUserManager
         return -1;
     }
     public async Task CreateUserAsync(
-        User user,
+        DataAccess.Entities.User user,
         CancellationToken cancellationToken)
     {
         // No id should be provided while insert.
@@ -35,6 +44,37 @@ public class UserManager : IUserManager
         user.UserName= GenerateUserName(user.FirstMidName, user.LastName, await _UserRepository.GetAllAsync(cancellationToken));
 
         await _UserRepository.CreateAsync(user, cancellationToken);
+        try
+        {
+          
+
+            // Auth0 user creation
+            var SignupUserRequest = new SignupUserRequest
+            {
+                Connection = "Username-Password-Authentication",
+                Username = user.UserName,
+                Password = user.Password,
+                Email = $"{user.UserName}@gmail.com"
+
+                // Auth0-specific properties
+            };
+
+            // Auth0 API user creation request
+            var createdUser = await _auth0Client.SignupUserAsync(SignupUserRequest);
+
+       
+        }
+        catch (ErrorApiException ex)
+        {
+
+            System.Diagnostics.Debug.WriteLine($"Auth0 API Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Status Code: {ex.ApiError.ErrorCode}");
+            System.Diagnostics.Debug.WriteLine($"Error: {ex.ApiError.Error}");
+            System.Diagnostics.Debug.WriteLine($"Description: {ex.ApiError.Message}");
+         
+            // Handle any exceptions that may occur during the process
+
+        }
     }
 
     /// <summary>
@@ -76,7 +116,7 @@ public class UserManager : IUserManager
 
 
 
-    public async Task<User> GetUserByIdAsync(
+    public async Task<DataAccess.Entities.User> GetUserByIdAsync(
         string UserName,
         CancellationToken cancellationToken)
     {
@@ -84,7 +124,7 @@ public class UserManager : IUserManager
         return await _UserRepository.GetByIdAsync(id, cancellationToken);
     }
 
-    public async Task UpdateUserAsync(string username, User user, CancellationToken cancellationToken)
+    public async Task UpdateUserAsync(string username, DataAccess.Entities.User user, CancellationToken cancellationToken)
     {
         var exuser= await _UserRepository.GetByUserNameAsync(username, cancellationToken);
         exuser.FirstMidName = user.FirstMidName;

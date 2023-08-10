@@ -21,6 +21,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand,string
             FirstMidName = request.User.FirstMidName,
             LastName = request.User.LastName,
             CreationDate = DateTime.Now,
+            Password = request.User.Password,
             
         };
 

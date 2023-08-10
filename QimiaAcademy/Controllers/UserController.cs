@@ -16,10 +16,16 @@ namespace QimiaAcademy.Controllers
 
     public class UserController : Controller
     {
+
+       
         private readonly IMediator _mediator;
+      
         public UserController(IMediator mediator)
         {
+            
+
             _mediator = mediator;
+          
         }
 
 
@@ -28,15 +34,17 @@ namespace QimiaAcademy.Controllers
             [FromBody] CreateUserDto User,
             CancellationToken cancellationToken)
         {
-            var response = await _mediator.Send(new CreateUserCommand(User), cancellationToken);
-
+              // Your existing logic to create the user using MediatR
+                var response = await _mediator.Send(new CreateUserCommand(User), cancellationToken);
             return CreatedAtAction(
-                nameof(GetUser),
-                new { username = response },
-                User);
+                    nameof(GetUser),
+                    new { username = response },
+                    User);
         }
+    
 
-        [HttpGet("{username}")]
+
+    [HttpGet("{username}")]
         public Task<UserDto> GetUser(
             [FromRoute] string username,
             CancellationToken cancellationToken)
