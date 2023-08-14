@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using Business.Middleware;
+
 //using Business.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,7 +92,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-//app.UseMiddleware<  Middleware>();
+
 app.MapControllers();
 
 app.Run();
