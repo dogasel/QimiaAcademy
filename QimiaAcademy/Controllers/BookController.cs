@@ -23,7 +23,7 @@ namespace QimiaAcademy.Controllers
         }
 
 
-        [HttpPost]
+     [HttpPost]
         [Authorize(Policy = "PermissionPolicy")]
         public async Task<ActionResult> CreateBook(
             [FromBody] CreateBookDto Book,
@@ -36,7 +36,7 @@ namespace QimiaAcademy.Controllers
                 new { id = response },
                 Book);
         }
-
+       
         [HttpGet("{id:long}")]
 
         public Task<BookDto> GetBook(

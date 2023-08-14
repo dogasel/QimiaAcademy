@@ -10,6 +10,9 @@ using System.Net;
 using System.Collections.Generic;
 using DataAccess.Exceptions;
 using System.Diagnostics.Eventing.Reader;
+using Auth0.ManagementApi.Models;
+using User = DataAccess.Entities.User;
+using Azure.Core;
 
 namespace Business.Implementations;
 
@@ -18,11 +21,13 @@ public class ReservationManager : IReservationManager
     private readonly IBookRepository _bookRepository;
     private readonly IReservationRepository _reservationRepository;
     private readonly IUserRepository _userRepository;
-    public ReservationManager(IBookRepository bookRepository, IReservationRepository reservationRepository, IUserRepository userRepository)
+    private readonly Auth0Token auth0Token;
+   public ReservationManager(IBookRepository bookRepository, IReservationRepository reservationRepository, IUserRepository userRepository, Auth0Token auth0Token)
     {
         _bookRepository = bookRepository;
         _reservationRepository = reservationRepository;
         _userRepository = userRepository;
+        this.auth0Token = auth0Token;
     }
 
     public async Task CreateReservationAsync(Reservation reservation, CancellationToken cancellationToken)
@@ -46,7 +51,14 @@ public class ReservationManager : IReservationManager
         }
 
         var user = await _userRepository.GetByUserNameAsync(reservation.username, cancellationToken);
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
 
+            if (!reservation.username.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot create this reservation because of the user mismatch!");
+        }
         reservation.UserId = user.ID;
         reservation.BookId = suitableBook.ID;
         reservation.ReservationDate = reservation.ReservationDate;
@@ -61,11 +73,19 @@ public class ReservationManager : IReservationManager
     public async Task<Reservation> GetReservationByIdAsync(long reservationId, CancellationToken cancellationToken)
     {
         // Get Username and Book
-
+       
         var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken); // Assuming you have a GetByIdAsync method in _reservationRepository
         if (reservation == null)
         {
             return null; // Return null if the reservation with the specified ID doesn't exist
+        }
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = await auth0Token.GetUsernameFromToken();
+            var userToken = await _userRepository.GetByUserNameAsync(USERNAME);
+            if (reservation.UserId != userToken.ID)
+                throw new InvalidOperationException("Cannot access this reservation due to the user mismatch!");
         }
 
         var user = await _userRepository.GetByIdAsync(reservation.UserId, cancellationToken); // Await here
@@ -73,6 +93,7 @@ public class ReservationManager : IReservationManager
 
         var reservationWithRelatedData = new Reservation
         {
+            ID= reservation.ID,
             UserId = user.ID,
             BookId = book.ID,
             Title = book.Title,
@@ -127,8 +148,17 @@ public class ReservationManager : IReservationManager
     }
     public async Task UpdateReservationAsync(long reservationID, Reservation updatedReservation, CancellationToken cancellationToken)
     {
+        
+       
         var oldReservation = await _reservationRepository.GetByIdAsync(reservationID, cancellationToken);
-
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = await auth0Token.GetUsernameFromToken();
+            var userToken = await _userRepository.GetByUserNameAsync(USERNAME);
+            if (oldReservation.UserId != userToken.ID)
+                throw new InvalidOperationException("Cannot access this reservation due to the user mismatch!");
+        }
         if (updatedReservation.ReservationDate.Date < DateTime.Now.Date)
         {
             throw new InvalidOperationException("It is not post date reservation. ");
@@ -192,18 +222,26 @@ public class ReservationManager : IReservationManager
     }
     public async Task<IEnumerable<Reservation>> GetReservationsByUsernameAsync(string username, CancellationToken cancellationToken)
     {
-        // Get the user with the provided username
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
+
+            if (!username.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot get this reservation because of the user mismatch!");
+        }
+ 
         var user = await _userRepository.GetByUserNameAsync(username, cancellationToken);
 
         if (user == null)
         {
-            return Enumerable.Empty<Reservation>(); // Return an empty collection if user doesn't exist
+            return Enumerable.Empty<Reservation>();
         }
 
-        // Get all reservations associated with the user's ID
+       
         var reservations = await _reservationRepository.GetByConditionAsync(u=>u.UserId==user.ID, cancellationToken);
 
-        // Fetch related book information for each reservation using recursion
+      
         var reservationsWithRelatedData = await FetchReservationDataAsync(reservations, user, cancellationToken);
 
         return reservationsWithRelatedData;
@@ -250,33 +288,37 @@ public class ReservationManager : IReservationManager
 
 
 
-    public void DeleteReservationAsync(long reservationId, CancellationToken cancellationToken)
+    public async Task DeleteReservationAsync(long reservationId, CancellationToken cancellationToken)
     {
         // Retrieve the reservation from the repository
-        var reservation = _reservationRepository.GetByIdAsync(reservationId, cancellationToken).GetAwaiter().GetResult();
+        var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken);
 
         if (reservation == null)
         {
             throw new InvalidOperationException("Reservation not found.");
         }
 
-        // Get the tarih işlem yapıldığı tarihi temsil eden değişken
+        var isAdmin = await auth0Token.IsAdminAsync();
+
+        if (!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
+
+            if (!reservation.username.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot delete this reservation because of the user mismatch!");
+        }
+
         var reservationDate = reservation.ReservationDate;
+        var userReservations = await _reservationRepository.GetByConditionAsync(r => r.UserId == reservation.UserId, cancellationToken);
 
-        // Retrieve all reservations associated with the user
-        var userReservations = _reservationRepository.GetByConditionAsync(r => r.UserId == reservation.UserId, cancellationToken).GetAwaiter().GetResult();
-
-        // Find the reservation to delete using the provided reservationId and reservation date
         var reservationToDelete = userReservations.FirstOrDefault(r => r.ID == reservationId && r.ReservationDate >= reservationDate);
 
         if (reservationToDelete != null)
         {
-            // Cancel the postdate reservation by marking it as deleted
             reservationToDelete.isDeleted = true;
-
-            // Save the updated reservation to the database using the _reservationRepository
-            _reservationRepository.UpdateAsync(reservationToDelete, cancellationToken).GetAwaiter().GetResult();
+            await _reservationRepository.UpdateAsync(reservationToDelete, cancellationToken);
         }
     }
+
 }
 

@@ -26,14 +26,13 @@ public class CreateRequestCommandHandler : IRequestHandler<CreateRequestCommand,
 
     public async Task<long> Handle(CreateRequestCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userManager.GetUserByIdAsync(request.Request.username, cancellationToken);
         var requestt = new Request
         {
            Title= request.Request.Title,
            Author=request.Request.Author,
            RequestStatus= RequestStatus.Pending,
-           UserName = user.UserName,
-           userId= user.ID,
+           UserName = request.Request.username,
+           CreateDate= DateTime.Now
 
         };
 

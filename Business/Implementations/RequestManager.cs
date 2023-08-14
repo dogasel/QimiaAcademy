@@ -5,6 +5,8 @@ using DataAccess.Repositories.Implementations;
 using Microsoft.EntityFrameworkCore;
 using DataAccess;
 using DataAccess.Exceptions;
+using Auth0.ManagementApi.Models;
+
 
 namespace Business.Implementations;
 public class RequestManager : IRequestManager
@@ -12,11 +14,13 @@ public class RequestManager : IRequestManager
     private readonly IBookRepository _bookRepository;
     private readonly IRequestRepository _requestRepository;
     private readonly IUserRepository _userRepository;
-    public RequestManager(IBookRepository bookRepository, IRequestRepository requestRepository, IUserRepository userRepository)
+    private readonly Auth0Token auth0Token;
+   public RequestManager(IBookRepository bookRepository, IRequestRepository requestRepository, IUserRepository userRepository, Auth0Token auth0Token)
     {
         _bookRepository = bookRepository;
         _requestRepository = requestRepository;
         _userRepository = userRepository; 
+        this.auth0Token = auth0Token;
     }
 
     
@@ -28,6 +32,17 @@ public class RequestManager : IRequestManager
         {
             throw new InvalidOperationException("This book is already in the library");
         }
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var username = await auth0Token.GetUsernameFromToken();
+            if (!request.UserName.Equals(username))
+                throw new InvalidOperationException("Cannot access this request!");
+        }
+       
+        var user = await _userRepository.GetByUserNameAsync(request.UserName, cancellationToken);
+        request.userId = user.ID;
+        request.UserName = user.UserName;
         await _requestRepository.CreateAsync(request, cancellationToken);
     }
 
@@ -41,6 +56,7 @@ public class RequestManager : IRequestManager
     }
     public async Task UpdateRequestAsync( long RequestId, Request updatedrequest, CancellationToken cancellationToken)
     {
+
         var request=await _requestRepository.GetByIdAsync(RequestId);
         if(updatedrequest.RequestStatus.Equals(RequestStatus.Completed))
         {
@@ -58,12 +74,11 @@ public class RequestManager : IRequestManager
 
         request.RequestStatus= updatedrequest.RequestStatus;
         request.UpdateDate=DateTime.Now;
-        request.Author = updatedrequest.Author;
-        request.Title= updatedrequest.Title;
+       
         await _requestRepository.UpdateAsync(request, cancellationToken);
            
     }
-    public void DeleteRequestAsync(long RequestId,CancellationToken cancellationToken)
+    public async void DeleteRequestAsync(long RequestId,CancellationToken cancellationToken)
     {
         // Retrieve the reservation from the repository
         var request = _requestRepository.GetByIdAsync(RequestId, cancellationToken).GetAwaiter().GetResult();
@@ -72,15 +87,33 @@ public class RequestManager : IRequestManager
         {
             throw new InvalidOperationException("request not found.");
         }
-
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if(!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
+            if (!request.UserName.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot access this request!");
+        }
+       
         request.RequestStatus = RequestStatus.Deleted;
         request.UpdateDate= DateTime.Now;
         _requestRepository.UpdateAsync(request, cancellationToken);
+        
+        
     }
 
     public async Task<DataAccess.Entities.Request> GetRequestByIdAsync(long RequestId, CancellationToken cancellationToken)
     {
-        return await _requestRepository.GetByIdAsync(RequestId, cancellationToken);
+        var request= await _requestRepository.GetByIdAsync(RequestId, cancellationToken);
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
+            if (!request.UserName.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot access this request!");
+        }
+
+        return request;
     }
 
     public async Task<IEnumerable<Request>> GetRequestsByUser(string username, CancellationToken cancellationToken)
@@ -90,7 +123,16 @@ public class RequestManager : IRequestManager
         {
             throw new EntityNotFoundException<Request>("Request not found.");
         }
-    
+       
+        var isAdmin = await auth0Token.IsAdminAsync();
+        if (!isAdmin)
+        {
+            var USERNAME = auth0Token.GetUsernameFromToken();
+           
+            if (!username.Equals(USERNAME))
+                throw new InvalidOperationException("Cannot access this request!");
+        }
+
         return result;
     }
 

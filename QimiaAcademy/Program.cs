@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-
-
+using Business.Middleware;
+//using Business.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +24,7 @@ builder.Services.AddDbContext<QimiaAcademyDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), options => options.CommandTimeout(120)));
 builder.Services.AddBusinessLayer();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
@@ -73,19 +74,10 @@ builder.Services.AddAuthentication(options =>
     var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration["Auth0:ClientSecret"]));
     options.Authority = $"{builder.Configuration["Auth0:Domain"]}";
     options.Audience = builder.Configuration["Auth0:Audience"];
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        NameClaimType = "name",
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = key,
-        ValidIssuer = $"https://{builder.Configuration["Auth0:Domain"]}",
-        ValidAudience = builder.Configuration["Auth0:Audience"],
-    };
+    
 });
 
-
+builder.Services.AddScoped<Auth0Token>();
 
 var app = builder.Build();
 
@@ -100,7 +92,7 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+//app.UseMiddleware<  Middleware>();
 app.MapControllers();
 
 app.Run();

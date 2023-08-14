@@ -8,6 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Auth0.AuthenticationApi;
 using Auth0.AuthenticationApi.Models;
 using Auth0.Core.Exceptions;
+
+
 namespace Business.Implementations;
 
 public class UserManager : IUserManager
@@ -15,6 +17,7 @@ public class UserManager : IUserManager
     private readonly IUserRepository _UserRepository;
     private readonly AuthenticationApiClient _auth0Client;
     private readonly IConfiguration _configuration;
+    
     public UserManager(IUserRepository UserRepository, IConfiguration configuration)
     {
         _configuration = configuration;
@@ -42,8 +45,9 @@ public class UserManager : IUserManager
         // No id should be provided while insert.
         user.ID = default;
         user.UserName= GenerateUserName(user.FirstMidName, user.LastName, await _UserRepository.GetAllAsync(cancellationToken));
+        user.Email = $"{user.UserName}@gmail.com";
 
-        await _UserRepository.CreateAsync(user, cancellationToken);
+
         try
         {
           
@@ -54,7 +58,7 @@ public class UserManager : IUserManager
                 Connection = "Username-Password-Authentication",
                 Username = user.UserName,
                 Password = user.Password,
-                Email = $"{user.UserName}@gmail.com"
+                Email =user.Email,
 
                 // Auth0-specific properties
             };
@@ -71,10 +75,11 @@ public class UserManager : IUserManager
             System.Diagnostics.Debug.WriteLine($"Status Code: {ex.ApiError.ErrorCode}");
             System.Diagnostics.Debug.WriteLine($"Error: {ex.ApiError.Error}");
             System.Diagnostics.Debug.WriteLine($"Description: {ex.ApiError.Message}");
-         
-            // Handle any exceptions that may occur during the process
+            throw new ErrorApiException(ex.ApiError.Message);
 
         }
+
+        await _UserRepository.CreateAsync(user, cancellationToken);
     }
 
     /// <summary>
@@ -115,7 +120,12 @@ public class UserManager : IUserManager
     }
 
 
-
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="UserName"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     public async Task<DataAccess.Entities.User> GetUserByIdAsync(
         string UserName,
         CancellationToken cancellationToken)
@@ -147,6 +157,11 @@ public class UserManager : IUserManager
         User.UpdateDate = DateTime.Now;
           await _UserRepository.UpdateAsync(User, cancellationToken);
         return username;
+    }
+    public async Task<bool> TryToLogin(string email, string password, CancellationToken cancellationToken)
+    {
+        var result=  await _UserRepository.TryToLogin(email, password, cancellationToken);
+        return result;
     }
 
 }

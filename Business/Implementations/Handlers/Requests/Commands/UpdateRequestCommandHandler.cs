@@ -29,8 +29,7 @@ public class UpdateRequestCommandHandler : IRequestHandler<UpdateRequestCommand,
 
         var requestt = new DataAccess.Entities.Request
         {
-            Title = request.Request.Title,
-            Author = request.Request.Author,
+           
             RequestStatus = request.Request.RequestStatus,
             UpdateDate = DateTime.Now,
             

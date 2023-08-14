@@ -22,7 +22,7 @@ public interface IReservationManager
         long ReservationId,
         Reservation reservation,
         CancellationToken cancellationToken);
-    public void DeleteReservationAsync(
+    public Task DeleteReservationAsync(
        long ReservationId,
        CancellationToken cancellationToken);
 

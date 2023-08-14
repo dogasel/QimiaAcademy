@@ -18,6 +18,7 @@ public class BookManager : IBookManager
     }
     public async Task CreateBookAsync(Book book, CancellationToken cancellationToken)
     {
+
         var bookList = await _BookRepository.GetByConditionAsync(
                         b => b.Title == book.Title && b.Author == book.Author,
                         cancellationToken);
@@ -26,8 +27,11 @@ public class BookManager : IBookManager
             book.RequestId = bookList.First().RequestId;
             await _BookRepository.CreateAsync(book, cancellationToken);
         }
-
-        throw new EntityNotFoundException<Book>("Book does not exist in the library. Please create a request for this book.");
+        else
+        {
+            throw new EntityNotFoundException<Book>("This book does not exist in the library.Books that do not exist in the library will be handle on request. Please create a request for this book.");
+        }
+        
     }         
         
     

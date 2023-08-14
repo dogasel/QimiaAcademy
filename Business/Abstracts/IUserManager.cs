@@ -27,4 +27,8 @@ public interface IUserManager
     public Task<string> DeleteAsync(
        string username, 
        CancellationToken cancellationToken);
+    public Task<bool> TryToLogin(
+        string email,
+        string password, 
+        CancellationToken cancellationToken);
 }

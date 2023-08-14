@@ -18,8 +18,8 @@ namespace DataAccess.Entities
 
         public DateTime CreateDate { get; set; }
 
-        public long userId { get; set; }
-        public string UserName { get; set; }
+        public long? userId { get; set; }
+        public string? UserName { get; set; }
         public User? User { get; set; }
 
         public RequestStatus RequestStatus { get; set; }

@@ -31,7 +31,31 @@ namespace DataAccess.Repositories.Implementations
             return user;
         }
 
-       
-        
+
+        public async Task<bool> TryToLogin(string email, string password, CancellationToken cancellationToken = default)
+        {
+            var user = await DbSet.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+            if (user == null)
+            {
+                throw new EntityNotFoundException<User>("User with this email not found!");
+            }
+
+            if (VerifyPassword(password, user.Password))
+            {
+                return true;
+            }
+
+            throw new Exception("Password incorrect. Please try again!");
+        }
+
+        private bool VerifyPassword(string enteredPassword, string storedPasswordHash)
+        {
+            if (enteredPassword.Equals(storedPasswordHash))
+            {
+                return true;
+            }
+            return false;
+        }
     }
 }
