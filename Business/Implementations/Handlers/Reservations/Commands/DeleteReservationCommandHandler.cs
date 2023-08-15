@@ -22,7 +22,7 @@ public class DeleteReservationCommandHandler  :IRequestHandler<DeleteReservation
 
     public async Task<long> Handle(DeleteReservationCommand reservation, CancellationToken cancellationToken)
     {
-        _ReservationManager.DeleteReservationAsync(reservation.ReservationId, cancellationToken);
+       await _ReservationManager.DeleteReservationAsync(reservation.ReservationId, cancellationToken);
         return reservation.ReservationId;
 
     }

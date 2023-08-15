@@ -21,8 +21,8 @@ public class ReservationManager : IReservationManager
     private readonly IBookRepository _bookRepository;
     private readonly IReservationRepository _reservationRepository;
     private readonly IUserRepository _userRepository;
-    private readonly Auth0Token auth0Token;
-   public ReservationManager(IBookRepository bookRepository, IReservationRepository reservationRepository, IUserRepository userRepository, Auth0Token auth0Token)
+    private readonly IAuth0Token auth0Token;
+   public ReservationManager(IBookRepository bookRepository, IReservationRepository reservationRepository, IUserRepository userRepository, IAuth0Token auth0Token)
     {
         _bookRepository = bookRepository;
         _reservationRepository = reservationRepository;

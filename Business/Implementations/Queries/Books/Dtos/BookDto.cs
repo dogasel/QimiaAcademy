@@ -10,7 +10,7 @@ namespace Business.Implementations.Queries.Books.Dtos;
 
 public class BookDto 
 {
-   
+    public long ID { get; set; }
     public string Title { get; set; }
     public string Author { get; set; }
     public long RequestId { get; set; }

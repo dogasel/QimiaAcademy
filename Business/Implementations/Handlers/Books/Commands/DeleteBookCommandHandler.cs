@@ -22,7 +22,7 @@ public class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand, long>
 
     public async Task<long> Handle(DeleteBookCommand request, CancellationToken cancellationToken)
     {
-         _BookManager.DeleteBookAsync(request.BookId, cancellationToken);
+        await _BookManager.DeleteBookAsync(request.BookId, cancellationToken);
         return request.BookId;
 
     }

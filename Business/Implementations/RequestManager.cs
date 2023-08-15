@@ -14,8 +14,8 @@ public class RequestManager : IRequestManager
     private readonly IBookRepository _bookRepository;
     private readonly IRequestRepository _requestRepository;
     private readonly IUserRepository _userRepository;
-    private readonly Auth0Token auth0Token;
-   public RequestManager(IBookRepository bookRepository, IRequestRepository requestRepository, IUserRepository userRepository, Auth0Token auth0Token)
+    private readonly IAuth0Token auth0Token;
+   public RequestManager(IBookRepository bookRepository, IRequestRepository requestRepository, IUserRepository userRepository, IAuth0Token auth0Token)
     {
         _bookRepository = bookRepository;
         _requestRepository = requestRepository;

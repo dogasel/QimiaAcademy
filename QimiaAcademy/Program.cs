@@ -71,13 +71,13 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(builder.Configuration["Auth0:ClientSecret"]));
+   
     options.Authority = $"{builder.Configuration["Auth0:Domain"]}";
     options.Audience = builder.Configuration["Auth0:Audience"];
     
 });
 
-builder.Services.AddScoped<Auth0Token>();
+builder.Services.AddScoped<IAuth0Token,Auth0Token>();
 
 var app = builder.Build();
 

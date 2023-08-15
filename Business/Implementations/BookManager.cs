@@ -13,9 +13,9 @@ public class BookManager : IBookManager
     private readonly IBookRepository _BookRepository;
     private readonly IReservationRepository _ReservationRepository;
     private readonly IUserRepository _userRepository;
-    private readonly Auth0Token auth0token;
+    private readonly IAuth0Token auth0token;
     private readonly IRequestRepository requestRepository;
-    public BookManager(IBookRepository BookRepository, IReservationRepository ReservationRepository, IUserRepository userRepository, Auth0Token auth0token, IRequestRepository requestRepository)
+    public BookManager(IBookRepository BookRepository, IReservationRepository ReservationRepository, IUserRepository userRepository, IAuth0Token auth0token, IRequestRepository requestRepository)
     {
         _BookRepository = BookRepository;
         _ReservationRepository = ReservationRepository;
@@ -23,6 +23,7 @@ public class BookManager : IBookManager
         this.auth0token = auth0token;
         this.requestRepository = requestRepository;
     }
+    
     public async Task CreateBookAsync(Book book, CancellationToken cancellationToken)
     {
 

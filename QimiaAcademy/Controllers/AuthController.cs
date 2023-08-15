@@ -20,8 +20,8 @@ namespace QimiaAcademy.Controllers
 
         private readonly StringBuilder messageBuilder;
         private readonly IMediator _mediator;
-        private readonly Auth0Token accessToken;
-        public AuthController(IMediator mediator, Auth0Token accessToken)
+        private readonly IAuth0Token accessToken;
+        public AuthController(IMediator mediator,IAuth0Token accessToken)
         {
             messageBuilder=new StringBuilder();
             _mediator = mediator;

@@ -9,7 +9,7 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace Business
 {
-    public class Auth0Token
+    public class Auth0Token : IAuth0Token
     {
         private readonly IConfiguration _configuration;
         private readonly AuthenticationApiClient _auth0Client;
