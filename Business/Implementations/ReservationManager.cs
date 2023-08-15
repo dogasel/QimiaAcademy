@@ -12,7 +12,7 @@ using DataAccess.Exceptions;
 using System.Diagnostics.Eventing.Reader;
 using Auth0.ManagementApi.Models;
 using User = DataAccess.Entities.User;
-using Azure.Core;
+
 
 namespace Business.Implementations;
 
@@ -72,9 +72,8 @@ public class ReservationManager : IReservationManager
 
     public async Task<Reservation> GetReservationByIdAsync(long reservationId, CancellationToken cancellationToken)
     {
-        // Get Username and Book
        
-        var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken); // Assuming you have a GetByIdAsync method in _reservationRepository
+        var reservation = await _reservationRepository.GetByIdAsync(reservationId, cancellationToken); 
         if (reservation == null)
         {
             return null; // Return null if the reservation with the specified ID doesn't exist
@@ -88,7 +87,7 @@ public class ReservationManager : IReservationManager
                 throw new InvalidOperationException("Cannot access this reservation due to the user mismatch!");
         }
 
-        var user = await _userRepository.GetByIdAsync(reservation.UserId, cancellationToken); // Await here
+        var user = await _userRepository.GetByIdAsync(reservation.UserId, cancellationToken);
         var book = await _bookRepository.GetByIdAsync(reservation.BookId, cancellationToken);
 
         var reservationWithRelatedData = new Reservation
@@ -112,21 +111,21 @@ public class ReservationManager : IReservationManager
 
     async Task<IEnumerable<Reservation>> IReservationManager.GetReservationsAsync(CancellationToken cancellationToken)
     {
-        //Get Username and Book
+     
 
         var reservations = await _reservationRepository.GetAllAsync(cancellationToken);
-        var users = await _userRepository.GetAllAsync(cancellationToken); // Await here
+        var users = await _userRepository.GetAllAsync(cancellationToken); 
         var books = await _bookRepository.GetAllAsync(cancellationToken);
 
         var reservationsWithRelatedData = reservations
             .Join(
-                users, // Use the awaited users variable
+                users, 
                 reservation => reservation.UserId,
                 user => user.ID,
                 (reservation, user) => new { Reservation = reservation, User = user }
             )
             .Join(
-                books, // Await the method if needed
+                books,
                 combined => combined.Reservation.BookId,
                 book => book.ID,
                 (combined, book) => new Reservation

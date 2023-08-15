@@ -15,7 +15,9 @@ public interface IUserManager
         string UserName,
         CancellationToken cancellationToken);
 
-
+    public Task<long> GetIdByUserName(
+        string UserName, CancellationToken cancellationToken
+        );
     public Task<IEnumerable<User>> GetUsersAsync(
 
         CancellationToken cancellationToken);

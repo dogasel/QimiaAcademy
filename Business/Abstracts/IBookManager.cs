@@ -31,4 +31,5 @@ public interface IBookManager
     public Task<long> DeleteBookAsync(
        long bookId,
        CancellationToken cancellationToken);
+ 
 }

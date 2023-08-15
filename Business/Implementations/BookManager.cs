@@ -3,6 +3,7 @@ using DataAccess.Entities;
 using DataAccess.Exceptions;
 using DataAccess.Repositories.Abstractions;
 using DataAccess.Repositories.Implementations;
+using Microsoft.AspNetCore.Identity;
 
 namespace Business.Implementations;
 
@@ -11,10 +12,16 @@ public class BookManager : IBookManager
 {
     private readonly IBookRepository _BookRepository;
     private readonly IReservationRepository _ReservationRepository;
-    public BookManager(IBookRepository BookRepository, IReservationRepository ReservationRepository)
+    private readonly IUserRepository _userRepository;
+    private readonly Auth0Token auth0token;
+    private readonly IRequestRepository requestRepository;
+    public BookManager(IBookRepository BookRepository, IReservationRepository ReservationRepository, IUserRepository userRepository, Auth0Token auth0token, IRequestRepository requestRepository)
     {
         _BookRepository = BookRepository;
         _ReservationRepository = ReservationRepository;
+        _userRepository = userRepository;
+        this.auth0token = auth0token;
+        this.requestRepository = requestRepository;
     }
     public async Task CreateBookAsync(Book book, CancellationToken cancellationToken)
     {
@@ -29,9 +36,54 @@ public class BookManager : IBookManager
         }
         else
         {
-            throw new EntityNotFoundException<Book>("This book does not exist in the library.Books that do not exist in the library will be handle on request. Please create a request for this book.");
+
+
+            var username = await auth0token.GetUsernameFromToken();
+            var user = await _userRepository.GetByUserNameAsync(username, cancellationToken);
+
+
+            var request = new Request
+            {
+                // Set properties of the request as needed
+                Title = book.Title,
+                Author = book.Author,
+                UserName = username,
+                userId = user.ID,
+                CreateDate= DateTime.Now,
+            };
+
+            await requestRepository.CreateAsync(request, cancellationToken);
+
+            // Now retrieve the newly created request to get its ID
+            var newRequest = await requestRepository.GetByConditionAsync(
+                r => r.Title == request.Title && r.Author == request.Author && r.UserName == request.UserName,
+                cancellationToken
+            );
+
+            if (newRequest != null)
+            {
+                var updatedRequest = newRequest.First();
+                updatedRequest.RequestStatus = RequestStatus.Completed;
+           
+                await requestRepository.UpdateAsync(updatedRequest, cancellationToken);
+                var boook = new Book
+                {
+                    Title = updatedRequest.Title,
+                    Author = updatedRequest.Author,
+                    RequestId = updatedRequest.ID,
+                    CreationDate = DateTime.Now,
+                    UpdateDate = DateTime.Now,
+                };
+                await _BookRepository.CreateAsync(boook, cancellationToken);
+
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to retrieve newly created request.");
+            }
+
         }
-        
+
     }         
         
     

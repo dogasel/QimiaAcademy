@@ -56,12 +56,8 @@ namespace Business
             var token = authorizationHeader["Bearer ".Length..].Trim();
             var user = await _auth0Client.GetUserInfoAsync(token.ToString());
 
-            if (user != null)
-            {
-                return user.NickName;
-            }
-
-            return null;
+            return user.NickName;
+            
         }
         public Task<bool> IsAdminAsync()
         {
